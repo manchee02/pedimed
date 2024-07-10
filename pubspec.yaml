@@ -1,0 +1,42 @@
+name: fyp_2
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.3.1 <4.0.0'
+
+dependencies:
+  permission_handler: ^11.3.1
+  flutter:
+    sdk: flutter
+  
+  http: ^1.2.1
+  flutter_typeahead: ^5.2.0
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
+  device_calendar: ^4.3.2
+  timezone: ^0.9.3
+  intl: ^0.19.0
+  flutter_local_notifications: ^17.1.2
+  firebase_core: ^3.1.1
+  firebase_auth: ^5.1.1
+  google_sign_in: ^6.2.1
+  workmanager: ^0.5.2
+  firebase_messaging: ^15.0.2
+  
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/google.png
+    - assets/known_drug_names.json
+    - assets/known_medication_types.json
+    - assets/label_encoder_brand.json
+    - assets/feature_names.json
+    - assets/unit_label.json
+

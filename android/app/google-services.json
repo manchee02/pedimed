@@ -1,0 +1,86 @@
+{
+  "project_info": {
+    "project_number": "975339874130",
+    "project_id": "fyp-pediatricapp",
+    "storage_bucket": "fyp-pediatricapp.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:975339874130:android:493680115b8f3f5d3fbc8b",
+        "android_client_info": {
+          "package_name": "com.example.fyp_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDAh4UFDq24jEeLbO4sX3y9k7Uo2tCthXU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:975339874130:android:758b25c62102d3fa3fbc8b",
+        "android_client_info": {
+          "package_name": "com.example.fyp_2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDAh4UFDq24jEeLbO4sX3y9k7Uo2tCthXU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:975339874130:android:75ce3d1632f99e4b3fbc8b",
+        "android_client_info": {
+          "package_name": "com.example.fyp_one"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDAh4UFDq24jEeLbO4sX3y9k7Uo2tCthXU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:975339874130:android:37936fcc39a68ad53fbc8b",
+        "android_client_info": {
+          "package_name": "com.example.pedimed"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDAh4UFDq24jEeLbO4sX3y9k7Uo2tCthXU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
