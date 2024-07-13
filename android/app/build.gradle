@@ -65,4 +65,7 @@ flutter {
     source '../..'
 }
 
-dependencies {}
+dependencies {
+    implementation platform('com.google.firebase:firebase-bom:latest_version')
+    implementation 'com.google.firebase:firebase-firestore'
+}

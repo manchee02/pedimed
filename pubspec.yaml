@@ -24,6 +24,9 @@ dependencies:
   google_sign_in: ^6.2.1
   workmanager: ^0.5.2
   firebase_messaging: ^15.0.2
+  cloud_firestore: ^5.1.0
+  shared_preferences: ^2.2.3
+  percent_indicator: ^4.2.3
   
 dev_dependencies:
   flutter_test:
@@ -39,4 +42,9 @@ flutter:
     - assets/label_encoder_brand.json
     - assets/feature_names.json
     - assets/unit_label.json
+    - assets/tablet.jpg
+    - assets/eyedrop.jpg
+    - assets/liquid.jpg
+    - assets/others.jpg
+    - assets/capsule.jpg
 

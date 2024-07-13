@@ -6,56 +6,15 @@ import 'homepage.dart';
 import 'login_page.dart';
 import 'signup_page.dart';
 import 'database_helper.dart';
-import 'alarm_permission_handler.dart';
 import 'notification_test_page.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
-import 'package:workmanager/workmanager.dart';
+import 'background_task_handler.dart';
+import 'notification_helper.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
-
-void callbackDispatcher() {
-  Workmanager().executeTask((task, inputData) async {
-    tz.initializeTimeZones();
-    tz.setLocalLocation(tz.getLocation('Asia/Kuala_Lumpur'));
-
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-      'medication_channel',
-      'Medication Reminders',
-      channelDescription: 'Channel for medication reminders',
-      importance: Importance.max,
-      priority: Priority.high,
-      showWhen: true,
-    );
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
-
-    final id = inputData?['id'] ?? 0;
-    final title = inputData?['title'] ?? 'Medication Reminder';
-    final body = inputData?['body'] ?? 'Time to take your medication';
-    final scheduledTimeStr = inputData?['scheduledTime'];
-    final scheduledTime = DateTime.parse(scheduledTimeStr);
-
-    print('Scheduling notification with id: $id at $scheduledTime');
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tz.TZDateTime.from(scheduledTime, tz.local),
-      platformChannelSpecifics,
-      androidAllowWhileIdle: true,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-    );
-
-    return Future.value(true);
-  });
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,27 +22,9 @@ void main() async {
   tz.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation('Asia/Kuala_Lumpur'));
 
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
+  await initializeNotifications(); // Initialize notifications
 
-  final InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-  );
-
-  await flutterLocalNotificationsPlugin.initialize(
-    initializationSettings,
-    onDidReceiveNotificationResponse:
-        (NotificationResponse notificationResponse) async {
-      if (notificationResponse.payload != null) {
-        debugPrint('notification payload: ${notificationResponse.payload}');
-      }
-    },
-  );
-
-  Workmanager().initialize(
-    callbackDispatcher,
-    isInDebugMode: true,
-  );
+  initializeBackgroundTaskHandler(); // Initialize background task handler
 
   runApp(PediatricMedTrackApp());
 }

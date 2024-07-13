@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:device_calendar/device_calendar.dart';
-import 'database_helper.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
-import 'add_med.dart'; // Import your add medication page here
+import 'database_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'notification_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'interval_medications_section.dart';
 
 class MedicineReminderPage extends StatefulWidget {
   @override
@@ -12,36 +14,76 @@ class MedicineReminderPage extends StatefulWidget {
 
 class _MedicineReminderPageState extends State<MedicineReminderPage> {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
-  final DeviceCalendarPlugin _deviceCalendarPlugin = DeviceCalendarPlugin();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   DateTime _selectedDate = DateTime.now();
+  List<Map<String, dynamic>> intervalMedications = [];
+  Map<int, DateTime> medicationTimers = {};
 
   @override
   void initState() {
     super.initState();
-    // No need to call _scheduleNotifications directly
+    _loadTimers();
+    _loadMedications();
   }
 
-  Future<void> _recordMedicineTaken(int medicationId, String time) async {
-    final timestamp = DateTime.now().toIso8601String();
-    await _databaseHelper.recordMedicineTaken(medicationId, timestamp);
-    setState(() {}); // Refresh the UI
+  Future<void> _loadMedications() async {
+    final medications = await _databaseHelper.getMedications();
+    setState(() {
+      intervalMedications = medications
+          .where((med) =>
+              med['doseTimeInterval'] != null &&
+              med['doseTimeInterval'].isNotEmpty)
+          .toList();
+    });
   }
 
-  Future<void> _completeMedicationForDay(int medicationId) async {
+  Future<void> _loadTimers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys();
+    setState(() {
+      for (var key in keys) {
+        final timeStr = prefs.getString(key);
+        if (timeStr != null) {
+          medicationTimers[int.parse(key)] = DateTime.parse(timeStr);
+        }
+      }
+    });
+  }
+
+  Future<void> _recordMedicineTaken(
+      int medicationId, String time, String medicationName) async {
+    final timestamp = DateTime.now();
+    final formattedTime = DateFormat('hh:mm a').format(timestamp);
+    await _databaseHelper.recordMedicineTaken(
+        medicationId, timestamp.toIso8601String());
+    await _firestore.collection('medication_taken').add({
+      'medicationId': medicationId,
+      'medicationName': medicationName,
+      'timeTaken': formattedTime,
+      'dateTaken': DateFormat('yyyy-MM-dd').format(timestamp),
+      'timestamp': timestamp.toIso8601String(),
+    });
+    setState(() {});
+  }
+
+  Future<void> _startTimer(
+      int medicationId, String medicationName, int intervalHours) async {
     final now = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day, 0, 0, 0);
-    final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    final nextDoseTime = now.add(Duration(hours: intervalHours));
+    medicationTimers[medicationId] = nextDoseTime;
 
-    final takenTimes = await _databaseHelper.getMedicationTakenTimes(
-        medicationId, todayStart.toIso8601String(), todayEnd.toIso8601String());
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        medicationId.toString(), nextDoseTime.toIso8601String());
 
-    final medication = await _databaseHelper.getMedicationById(medicationId);
-    final dosagePerDay = medication['dosagePerDay'];
+    await scheduleNotification(
+      medicationId,
+      'Medication Reminder',
+      'It\'s time for your next dose of $medicationName',
+      nextDoseTime,
+    );
 
-    if (takenTimes.length >= dosagePerDay) {
-      // Mark medication as completed for the day
-      print('Medication completed for the day.');
-    }
+    setState(() {});
   }
 
   @override
@@ -83,16 +125,12 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
               },
             ),
           ),
+          IntervalMedicationsSection(
+            intervalMedications: intervalMedications,
+            medicationTimers: medicationTimers,
+            onStartTimer: _startTimer,
+          ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => AddMedPage()),
-          );
-        },
-        child: Icon(Icons.add),
       ),
     );
   }
@@ -118,7 +156,7 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.red : Colors.transparent,
+                    color: isSelected ? Colors.blue : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
                   child: Center(
@@ -157,29 +195,44 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
   Widget _buildDefaultTile(Map<String, dynamic> medication) {
     return ListTile(
       title: Text(medication['brandName']),
-      subtitle: Text(medication['doseTimeInterval'] ?? 'No time specified'),
       trailing: Text('${medication['dosage']} ${medication['dosageUnit']}'),
     );
   }
 
-  Widget _buildMedicationTile(Map<String, dynamic> medication,
-      Map<String, dynamic> profile, String time, bool taken) {
+  Widget _buildMedicationTile(
+      Map<String, dynamic> medication,
+      Map<String, dynamic> profile,
+      String time,
+      bool taken,
+      String? takenTime) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(color: Colors.grey[300]!),
           borderRadius: BorderRadius.circular(10),
-          color: Colors.white,
+          color: taken ? Colors.blue[100] : Colors.white,
         ),
         child: ListTile(
-          leading: const Icon(Icons.medication, color: Colors.blue),
-          title: Text(medication['brandName']),
+          leading: Image.asset(
+            'assets/${medication['medicationType'].toLowerCase()}.jpg',
+            width: 40,
+            height: 40,
+          ),
+          title: Text(
+            medication['brandName'],
+            style: taken ? TextStyle(color: Colors.blue) : null,
+          ),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Time: $time'),
-              Text('Child: ${profile['name']}'),
+              Text(
+                'Child: ${profile['name']}',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              if (taken)
+                Text('Taken at $takenTime',
+                    style: TextStyle(color: Colors.blue)),
             ],
           ),
           trailing: Row(
@@ -193,8 +246,11 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
                 onPressed: taken
                     ? null
                     : () {
-                        _recordMedicineTaken(medication['id'], time);
-                        _completeMedicationForDay(medication['id']);
+                        _recordMedicineTaken(
+                                medication['id'], time, medication['brandName'])
+                            .then((_) {
+                          setState(() {});
+                        });
                       },
               ),
             ],
@@ -237,15 +293,18 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
                         'T23:59:59'),
                 builder: (context, takenSnapshot) {
                   bool taken = false;
+                  String? takenTime;
                   if (takenSnapshot.connectionState == ConnectionState.done &&
                       takenSnapshot.hasData) {
                     taken = takenSnapshot.data!.any((takenMed) {
-                      return DateFormat.jm()
-                              .format(DateTime.parse(takenMed['timestamp'])) ==
-                          time;
+                      final takenTimestamp =
+                          DateTime.parse(takenMed['timestamp']);
+                      takenTime = DateFormat('hh:mm a').format(takenTimestamp);
+                      return DateFormat.jm().format(takenTimestamp) == time;
                     });
                   }
-                  return _buildMedicationTile(medication, profile, time, taken);
+                  return _buildMedicationTile(
+                      medication, profile, time, taken, takenTime);
                 },
               );
             },
@@ -260,6 +319,10 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
     final Map<String, List<Map<String, dynamic>>> groupedMedications = {};
 
     for (var med in medications) {
+      if (med['doseTimeInterval'] != null &&
+          med['doseTimeInterval'].isNotEmpty) {
+        continue;
+      }
       final doseTimeInterval = med['doseTimeInterval'] ?? '';
       final predeterminedTimes = med['predeterminedTimes'] != null
           ? List<String>.from(jsonDecode(med['predeterminedTimes']))
@@ -289,8 +352,7 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
 
     final times = <String>[];
     final now = DateTime.now();
-    var nextTime =
-        DateTime(now.year, now.month, now.day, 8, 0); // Starting at 8 AM
+    var nextTime = DateTime(now.year, now.month, now.day, 8, 0);
 
     while (nextTime.day == now.day) {
       times.add(DateFormat.jm().format(nextTime));

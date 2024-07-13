@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -13,11 +14,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
   List<Map<String, dynamic>> _profiles = [];
   DatabaseHelper _dbHelper = DatabaseHelper();
+  bool isPremiumUser = false;
+  final int basicProfileLimit = 5;
+  final int premiumProfileLimit = 15;
 
   @override
   void initState() {
     super.initState();
     _loadProfiles();
+    _loadSubscriptionStatus();
   }
 
   Future<void> _loadProfiles() async {
@@ -27,16 +32,32 @@ class _ProfilePageState extends State<ProfilePage> {
     });
   }
 
+  Future<void> _loadSubscriptionStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isPremiumUser = prefs.getBool('isSubscribed') ?? false;
+    });
+  }
+
   void _addProfile() async {
     String name = _nameController.text;
     String age = _ageController.text;
     String? allergen = _allergenController.text;
 
+    int profileLimit = isPremiumUser ? premiumProfileLimit : basicProfileLimit;
+
+    if (_profiles.length >= profileLimit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upgrade to premium to add more profiles.')),
+      );
+      return;
+    }
+
     if (name.isNotEmpty && age.isNotEmpty) {
       Map<String, dynamic> profile = {
         'name': name,
         'age': age,
-        'allergen': allergen, // Assign nullable allergen value directly
+        'allergen': allergen,
       };
       await _dbHelper.insertProfile(profile);
 
@@ -51,37 +72,32 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _editProfile(int id) async {
-    // Initialize profile with an empty map
-    Map<String, dynamic> profile = {};
-
     // Find the profile with the given id
-    for (var p in _profiles) {
-      if (p['id'] == id) {
-        profile = p;
-        break;
-      }
-    }
+    Map<String, dynamic> profile = _profiles.firstWhere((p) => p['id'] == id);
 
     // Your existing code for showing the edit dialog
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        _nameController.text = profile['name'] ?? '';
+        _ageController.text = profile['age'] ?? '';
+        _allergenController.text = profile['allergen'] ?? '';
+
         return AlertDialog(
           title: Text('Edit Profile'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: _nameController..text = profile['name'] ?? '',
+                controller: _nameController,
                 decoration: InputDecoration(labelText: 'Name'),
               ),
               TextField(
-                controller: _ageController..text = profile['age'] ?? '',
+                controller: _ageController,
                 decoration: InputDecoration(labelText: 'Age'),
               ),
               TextField(
-                controller: _allergenController
-                  ..text = profile['allergen'] ?? '',
+                controller: _allergenController,
                 decoration: InputDecoration(labelText: 'Allergen'),
               ),
             ],
@@ -108,8 +124,35 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _deleteProfile(int id) async {
-    await _dbHelper.deleteProfile(id);
-    _loadProfiles();
+    List<Map<String, dynamic>> medications =
+        await _dbHelper.getMedicationsForProfile(id);
+
+    if (medications.isNotEmpty) {
+      _showDeleteMedicationsAlert();
+    } else {
+      await _dbHelper.deleteProfile(id);
+      _loadProfiles();
+    }
+  }
+
+  void _showDeleteMedicationsAlert() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Cannot delete profile'),
+          content: Text('Delete the medications linked to this profile first.'),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -151,7 +194,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         IconButton(
                           icon: Icon(Icons.edit),
                           onPressed: () {
-                            _editProfile(_profiles.indexOf(profile));
+                            _editProfile(profile['id']);
                           },
                         ),
                         IconButton(

@@ -5,8 +5,9 @@ import 'add_med.dart';
 import 'medicine_store.dart';
 import 'medicine_reminder_page.dart';
 import 'notification_test_page.dart';
-import 'svm_classification_page.dart'; // Import the new SVM Classification Page
+import 'svm_classification_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'upgrade_to_premium_page.dart'; // Import the new Upgrade to Premium Page
 
 class HomePage extends StatelessWidget {
   final bool permissionGranted;
@@ -232,8 +233,10 @@ class HomePage extends StatelessWidget {
               ],
             ),
             onTap: () {
-              // Handle Upgrade to Premium tap
-              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => UpgradeToPremiumPage()),
+              );
             },
           ),
           ListTile(

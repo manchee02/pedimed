@@ -232,6 +232,13 @@ class DatabaseHelper {
     );
   }
 
+  Future<List<Map<String, dynamic>>> getMedicationsForProfile(
+      int profileId) async {
+    final db = await database;
+    return await db
+        .query('medications', where: 'profileId = ?', whereArgs: [profileId]);
+  }
+
   Future<void> logTableSchema() async {
     final db = await database;
     final profilesSchema = await db.rawQuery("PRAGMA table_info(profiles)");
