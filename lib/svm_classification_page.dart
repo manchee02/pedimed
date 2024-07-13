@@ -37,9 +37,9 @@ class _SvmClassificationPageState extends State<SvmClassificationPage> {
     try {
       Map<String, dynamic>? preprocessedData =
           await preprocessData(selectedMedicine!);
-      if (preprocessedData == null) {
+      if (preprocessedData == null || preprocessedData.containsKey('error')) {
         setState(() {
-          predictionResult = 'Error in preprocessing data.';
+          predictionResult = 'Error analysing active ingredient name';
         });
         return;
       }
@@ -154,7 +154,10 @@ class _SvmClassificationPageState extends State<SvmClassificationPage> {
                       onPressed: _predictMedicineCategory,
                       style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue),
-                      child: Text('Predict Category'),
+                      child: Text(
+                        'Predict Category',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ),
                   SizedBox(height: 10),
@@ -181,7 +184,10 @@ class _SvmClassificationPageState extends State<SvmClassificationPage> {
                       onPressed: _savePrediction,
                       style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue),
-                      child: Text('Save Prediction'),
+                      child: Text(
+                        'Save Prediction',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ),
                 ],
