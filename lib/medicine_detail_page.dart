@@ -14,9 +14,9 @@ class MedicineDetailPage extends StatefulWidget {
 
 class _MedicineDetailPageState extends State<MedicineDetailPage> {
   String _activeIngredient = '';
-  String _dosage = '';
+  List<String> _dosage = [];
   String _usage = '';
-  String _indications = '';
+  List<String> _indications = [];
   String _pediatricDosage = '';
   String _adultDosage = '';
   String _errorMessage = '';
@@ -40,15 +40,17 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
           final result = jsonData['results'].first;
           String activeIngredient =
               result['active_ingredient']?.join(', ') ?? 'Not Available';
-          String dosage =
-              result['dosage_and_administration']?.first ?? 'Not Available';
+          List<String> dosage = _extractSegments(
+              result['dosage_and_administration']?.first ?? '');
           String usage = result['purpose']?.first ?? 'Not Available';
-          String indications =
-              result['indications_and_usage']?.first ?? 'Not Available';
+          List<String> indications =
+              _extractSegments(result['indications_and_usage']?.first ?? '');
 
           // Example parsing for pediatric and adult dosages (this depends on actual data structure)
-          String pediatricDosage = _extractDosage(result, 'pediatric');
-          String adultDosage = _extractDosage(result, 'adult');
+          String pediatricDosage =
+              _extractSpecificDosage(dosage.join(' '), 'Pediatric');
+          String adultDosage =
+              _extractSpecificDosage(dosage.join(' '), 'Adult');
 
           if (mounted) {
             setState(() {
@@ -65,9 +67,9 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
           if (mounted) {
             setState(() {
               _activeIngredient = '';
-              _dosage = '';
+              _dosage = [];
               _usage = '';
-              _indications = '';
+              _indications = [];
               _pediatricDosage = '';
               _adultDosage = '';
               _errorMessage = 'Detailed information not found.';
@@ -78,9 +80,9 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
         if (mounted) {
           setState(() {
             _activeIngredient = '';
-            _dosage = '';
+            _dosage = [];
             _usage = '';
-            _indications = '';
+            _indications = [];
             _pediatricDosage = '';
             _adultDosage = '';
             _errorMessage =
@@ -93,9 +95,9 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
       if (mounted) {
         setState(() {
           _activeIngredient = '';
-          _dosage = '';
+          _dosage = [];
           _usage = '';
-          _indications = '';
+          _indications = [];
           _pediatricDosage = '';
           _adultDosage = '';
           _errorMessage =
@@ -105,26 +107,51 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
     }
   }
 
-  String _extractDosage(Map<String, dynamic> result, String type) {
-    String dosage =
-        result['dosage_and_administration']?.join(' ') ?? 'Not Available';
-    if (type == 'pediatric') {
-      return dosage.contains('Pediatric') ? dosage : 'Not Available';
+  String _extractSpecificDosage(String text, String type) {
+    if (type == 'Pediatric') {
+      return text.contains('Pediatric') ? text : 'Not Available';
     } else {
-      return dosage.contains('Adult') ? dosage : 'Not Available';
+      return text.contains('Adult') ? text : 'Not Available';
     }
   }
 
-  List<Widget> _buildCollapsibleText(String text) {
-    List<String> paragraphs = text.split(RegExp(r'(?<=\.\s)'));
-    return paragraphs
-        .map((paragraph) => ExpansionTile(
+  List<String> _extractSegments(String text) {
+    List<String> segments = [];
+    RegExp regExp = RegExp(r'(?<!\()\d+\.\d+(?![\)])');
+    Iterable<Match> matches = regExp.allMatches(text);
+    int lastIndex = 0;
+
+    for (Match match in matches) {
+      if (lastIndex != match.start) {
+        segments.add(text.substring(lastIndex, match.start).trim());
+      }
+      lastIndex = match.start;
+    }
+    segments.add(text.substring(lastIndex).trim());
+    return segments;
+  }
+
+  List<Widget> _buildCollapsibleText(List<String> texts) {
+    return texts
+        .asMap()
+        .map((index, text) {
+          return MapEntry(
+            index,
+            ExpansionTile(
               title: Text(
-                paragraph.split(' ').take(4).join(' ') + '...',
+                text.split(' ').take(4).join(' ') + '...',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              children: [Text(paragraph)],
-            ))
+              children: [
+                Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: Text(text),
+                )
+              ],
+            ),
+          );
+        })
+        .values
         .toList();
   }
 
@@ -171,7 +198,13 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                 'Usage:',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              ..._buildCollapsibleText(_usage),
+              ..._buildCollapsibleText([_usage]),
+              SizedBox(height: 20),
+              Text(
+                'Dosage:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              ..._buildCollapsibleText(_dosage),
               SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -204,7 +237,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                       'Pediatric Dosage:',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    ..._buildCollapsibleText(_pediatricDosage),
+                    ..._buildCollapsibleText([_pediatricDosage]),
                   ],
                 )
               else
@@ -215,7 +248,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                       'Adult Dosage:',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    ..._buildCollapsibleText(_adultDosage),
+                    ..._buildCollapsibleText([_adultDosage]),
                   ],
                 ),
             ],

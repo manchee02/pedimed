@@ -7,7 +7,7 @@ import 'medicine_reminder_page.dart';
 import 'notification_test_page.dart';
 import 'svm_classification_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'upgrade_to_premium_page.dart'; // Import the new Upgrade to Premium Page
+import 'upgrade_to_premium_page.dart';
 
 class HomePage extends StatelessWidget {
   final bool permissionGranted;
@@ -207,12 +207,19 @@ class HomePage extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.blue,
             ),
-            child: Text(
-              'Navigation',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-              ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset('assets/pedimed.jpg', height: 80), // App Logo
+                SizedBox(height: 10),
+                Text(
+                  'Navigation',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                  ),
+                ),
+              ],
             ),
           ),
           ListTile(
@@ -236,6 +243,30 @@ class HomePage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => UpgradeToPremiumPage()),
+              );
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.schedule),
+            title: Text('Schedule Appointment'),
+            onTap: () {},
+          ),
+          ListTile(
+            leading: Icon(Icons.document_scanner),
+            title: Text('Generate Report'),
+            onTap: () {
+              // Navigate to a mockup page or do nothing
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => Scaffold(
+                          appBar: AppBar(
+                            title: Text('Generate Report'),
+                          ),
+                          body: Center(
+                            child: Text('Generate Report Page (Mockup)'),
+                          ),
+                        )),
               );
             },
           ),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'medicine_detail_page.dart';
 
 class MedicineInfoPage extends StatefulWidget {
@@ -12,9 +13,13 @@ class _MedicineInfoPageState extends State<MedicineInfoPage> {
   TextEditingController _medicineController = TextEditingController();
   String _errorMessage = '';
   List<Map<String, String>> _medicines = [];
+  List<String> _searchHistory = [];
 
-  // Define your API key here
-  final String apiKey = 'aYMuR9q7cYCFoBR73Pguh62pRccNm7WFrcqYAnfy';
+  @override
+  void initState() {
+    super.initState();
+    _loadSearchHistory();
+  }
 
   Future<void> _fetchMedicineInfo(String medicineName) async {
     try {
@@ -110,21 +115,78 @@ class _MedicineInfoPageState extends State<MedicineInfoPage> {
     });
   }
 
+  void _addToSearchHistory(String search) {
+    setState(() {
+      _searchHistory
+          .remove(search); // Remove if it already exists to avoid duplicates
+      _searchHistory.insert(0, search); // Insert at the beginning
+      if (_searchHistory.length > 10) {
+        _searchHistory =
+            _searchHistory.sublist(0, 10); // Keep only the last 10 searches
+      }
+    });
+    _saveSearchHistory();
+  }
+
+  Future<void> _loadSearchHistory() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? history = prefs.getStringList('searchHistory');
+    if (history != null) {
+      setState(() {
+        _searchHistory = history;
+      });
+    }
+  }
+
+  Future<void> _saveSearchHistory() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setStringList('searchHistory', _searchHistory);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Medicine Information'),
+        backgroundColor: Colors.blue,
       ),
       body: Padding(
         padding: EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              controller: _medicineController,
-              decoration: InputDecoration(
-                labelText: 'Enter Medicine Name',
+            Image.asset('assets/openfda.jpg'), // Add the image asset here
+            SizedBox(height: 20),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.5),
+                    spreadRadius: 2,
+                    blurRadius: 5,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _medicineController,
+                decoration: InputDecoration(
+                  labelText: 'Enter Medicine Name',
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.cancel),
+                    onPressed: () {
+                      _medicineController.clear();
+                    },
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
               ),
             ),
             SizedBox(height: 20),
@@ -132,6 +194,7 @@ class _MedicineInfoPageState extends State<MedicineInfoPage> {
               onPressed: () {
                 final medicineName = _medicineController.text.trim();
                 if (medicineName.isNotEmpty) {
+                  _addToSearchHistory(medicineName);
                   _fetchMedicineInfo(medicineName);
                 } else {
                   setState(() {
@@ -140,8 +203,26 @@ class _MedicineInfoPageState extends State<MedicineInfoPage> {
                   });
                 }
               },
-              child: Text('Search'),
+              child: Text('Search', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
             ),
+            SizedBox(height: 20),
+            if (_searchHistory.isNotEmpty)
+              Wrap(
+                spacing: 8.0,
+                runSpacing: 4.0,
+                children: _searchHistory.map((search) {
+                  return Chip(
+                    label: Text(search),
+                    onDeleted: () {
+                      setState(() {
+                        _searchHistory.remove(search);
+                        _saveSearchHistory();
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
             SizedBox(height: 20),
             if (_errorMessage.isNotEmpty)
               Text(
@@ -151,24 +232,42 @@ class _MedicineInfoPageState extends State<MedicineInfoPage> {
             SizedBox(height: 20),
             Expanded(
               child: ListView.builder(
+                padding: EdgeInsets.all(8.0),
                 itemCount: _medicines.length,
                 itemBuilder: (context, index) {
                   final medicine = _medicines[index];
-                  return ListTile(
-                    title: Text(medicine['name']!),
-                    subtitle: Text(
-                        'Type: ${medicine['type']}\nBrand: ${medicine['brand']}'),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => MedicineDetailPage(
-                            medicineName: medicine['name']!,
-                            medicineId: medicine['id']!,
-                          ),
+                  return Container(
+                    margin: EdgeInsets.only(bottom: 8.0),
+                    padding: EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.5),
+                          spreadRadius: 2,
+                          blurRadius: 5,
+                          offset: Offset(0, 3),
                         ),
-                      );
-                    },
+                      ],
+                    ),
+                    child: ListTile(
+                      title: Text(medicine['name']!),
+                      subtitle: Text(
+                        'Type: ${medicine['type']}\nBrand: ${medicine['brand']}',
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MedicineDetailPage(
+                              medicineName: medicine['name']!,
+                              medicineId: medicine['id']!,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   );
                 },
               ),
