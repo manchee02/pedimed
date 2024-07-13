@@ -37,14 +37,14 @@ class _SvmClassificationPageState extends State<SvmClassificationPage> {
     try {
       Map<String, dynamic>? preprocessedData =
           await preprocessData(selectedMedicine!);
-      if (preprocessedData == null || preprocessedData.containsKey('error')) {
+      if (preprocessedData == null) {
         setState(() {
-          predictionResult = 'Error: Medication not registered in the model';
+          predictionResult = 'Error in preprocessing data.';
         });
         return;
       }
       final response = await http.post(
-        Uri.parse('http://10.62.50.89:5000/predict'),
+        Uri.parse('http://10.62.50.120:5000/predict'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
@@ -54,7 +54,9 @@ class _SvmClassificationPageState extends State<SvmClassificationPage> {
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
         setState(() {
-          if (result['category'] == null) {
+          if (result['confidence'] < 50) {
+            predictionResult = 'Error: Confidence level is below 50%.';
+          } else if (result['category'] == null) {
             predictionResult = 'Error: Medicine is not within scope.';
           } else {
             predictionResult =

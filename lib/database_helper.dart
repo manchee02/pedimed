@@ -27,12 +27,12 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'profiles.db');
     return await openDatabase(
       path,
-      version: 9, // Increment the version number
+      version: 10, // Increment the version number
       onCreate: (db, version) async {
         await _createTables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 9) {
+        if (oldVersion < 10) {
           await _updateTables(db, oldVersion, newVersion);
         }
       },
@@ -44,7 +44,7 @@ class DatabaseHelper {
       "CREATE TABLE IF NOT EXISTS profiles(id INTEGER PRIMARY KEY, name TEXT, age TEXT, allergen TEXT)",
     );
     await db.execute(
-      "CREATE TABLE IF NOT EXISTS medications(id INTEGER PRIMARY KEY, profileId INTEGER, profileName TEXT, activeIngredient TEXT, brandName TEXT, dosage NUMERIC, dosageUnit TEXT, dosagePerDay INTEGER, doseTimeInterval TEXT, medicationType TEXT, predeterminedTimes TEXT, therapeuticCategory TEXT DEFAULT 'Unclassified')",
+      "CREATE TABLE IF NOT EXISTS medications(id INTEGER PRIMARY KEY, profileId INTEGER, profileName TEXT, activeIngredient TEXT, brandName TEXT, dosage NUMERIC, dosageUnit TEXT, dosagePerDay INTEGER, doseTimeInterval TEXT, medicationType TEXT, predeterminedTimes TEXT, therapeuticCategory TEXT DEFAULT 'Unclassified', createdAt TEXT)", // Add createdAt field
     );
     await db.execute(
       "CREATE TABLE IF NOT EXISTS medication_taken(id INTEGER PRIMARY KEY AUTOINCREMENT, medicationId INTEGER, timestamp TEXT)",
@@ -53,14 +53,10 @@ class DatabaseHelper {
 
   Future<void> _updateTables(
       Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 9) {
-      // Add profileName column to medications table if it doesn't exist
+    if (oldVersion < 10) {
+      // Add createdAt column to medications table if it doesn't exist
       await db.execute(
-        "ALTER TABLE medications ADD COLUMN profileName TEXT",
-      );
-      // Add therapeuticCategory column to medications table if it doesn't exist
-      await db.execute(
-        "ALTER TABLE medications ADD COLUMN therapeuticCategory TEXT DEFAULT 'Unclassified'",
+        "ALTER TABLE medications ADD COLUMN createdAt TEXT",
       );
     }
   }

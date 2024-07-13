@@ -9,6 +9,8 @@ class MedicineStorePage extends StatefulWidget {
 
 class _MedicineStorePageState extends State<MedicineStorePage> {
   Map<String, List<Map<String, dynamic>>> _medicationsByCategory = {};
+  Map<String, List<Map<String, dynamic>>> _medicationsByProfile = {};
+  bool _groupByCategory = true;
 
   @override
   void initState() {
@@ -19,7 +21,10 @@ class _MedicineStorePageState extends State<MedicineStorePage> {
   Future<void> _loadMedications() async {
     final dbHelper = DatabaseHelper();
     final medications = await dbHelper.getMedications();
+    final profiles = await dbHelper.getProfiles();
+
     final Map<String, List<Map<String, dynamic>>> medicationsByCategory = {};
+    final Map<String, List<Map<String, dynamic>>> medicationsByProfile = {};
 
     for (var medication in medications) {
       String category = medication['therapeuticCategory'] ?? 'Unclassified';
@@ -27,10 +32,19 @@ class _MedicineStorePageState extends State<MedicineStorePage> {
         medicationsByCategory[category] = [];
       }
       medicationsByCategory[category]!.add(medication);
+
+      String profileName = profiles.firstWhere(
+          (profile) => profile['id'] == medication['profileId'],
+          orElse: () => {'name': 'Unknown'})['name'];
+      if (!medicationsByProfile.containsKey(profileName)) {
+        medicationsByProfile[profileName] = [];
+      }
+      medicationsByProfile[profileName]!.add(medication);
     }
 
     setState(() {
       _medicationsByCategory = medicationsByCategory;
+      _medicationsByProfile = medicationsByProfile;
     });
   }
 
@@ -45,14 +59,32 @@ class _MedicineStorePageState extends State<MedicineStorePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Medicine Management'),
+        actions: [
+          Switch(
+            value: _groupByCategory,
+            onChanged: (value) {
+              setState(() {
+                _groupByCategory = value;
+              });
+            },
+            activeTrackColor: Colors.lightBlueAccent,
+            activeColor: Colors.blue,
+          ),
+        ],
       ),
-      body: _medicationsByCategory.isEmpty
+      body: _medicationsByCategory.isEmpty && _medicationsByProfile.isEmpty
           ? Center(child: Text('No medications added yet.'))
           : ListView(
-              children: _medicationsByCategory.keys.map((category) {
+              children: (_groupByCategory
+                      ? _medicationsByCategory.keys
+                      : _medicationsByProfile.keys)
+                  .map((group) {
                 return ExpansionTile(
-                  title: Text(category),
-                  children: _medicationsByCategory[category]!.map((medication) {
+                  title: Text(group),
+                  children: (_groupByCategory
+                          ? _medicationsByCategory[group]
+                          : _medicationsByProfile[group])!
+                      .map((medication) {
                     return Container(
                       margin:
                           EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
@@ -70,34 +102,47 @@ class _MedicineStorePageState extends State<MedicineStorePage> {
                         ],
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                medication['brandName'] ?? '',
-                                style: TextStyle(
-                                  fontSize: 18.0,
-                                  fontWeight: FontWeight.bold,
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  medication['brandName'] ?? '',
+                                  style: TextStyle(
+                                    fontSize: 18.0,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              Text(
-                                'Dosage: ${medication['dosage']} ${medication['dosageUnit']}',
-                              ),
-                              Text(
-                                'Active Ingredient: ${medication['activeIngredient']}',
-                              ),
-                              Text(
-                                'Dosage Per Day: ${medication['dosagePerDay'] ?? 'N/A'}',
-                              ),
-                              Text(
-                                'Time Interval: ${medication['doseTimeInterval'] ?? 'N/A'}',
-                              ),
-                              Text(
-                                'Medication Type: ${medication['medicationType']}',
-                              ),
-                            ],
+                                Text(
+                                  'Dosage: ${medication['dosage']} ${medication['dosageUnit']}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  'Active Ingredient: ${medication['activeIngredient']}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  'Dosage Per Day: ${medication['dosagePerDay'] ?? 'N/A'}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  'Time Interval: ${medication['doseTimeInterval'] ?? 'N/A'}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  'Medication Type: ${medication['medicationType']}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
                           ),
                           IconButton(
                             icon: Icon(Icons.edit),

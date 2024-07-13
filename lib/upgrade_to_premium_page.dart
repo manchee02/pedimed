@@ -107,11 +107,14 @@ class _UpgradeToPremiumPageState extends State<UpgradeToPremiumPage> {
               ElevatedButton(
                 onPressed: _toggleSubscription,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isSubscribed ? Colors.red : Colors.black,
+                  backgroundColor: isSubscribed ? Colors.yellow : Colors.black,
                   padding: EdgeInsets.symmetric(horizontal: 40, vertical: 20),
                   textStyle: TextStyle(fontSize: 18),
                 ),
-                child: Text(isSubscribed ? 'Unsubscribe' : 'Upgrade'),
+                child: Text(
+                  isSubscribed ? 'Unsubscribe' : 'Upgrade',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),

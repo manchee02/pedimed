@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
+import 'package:intl/intl.dart';
+import 'dart:convert';
 
 class EditMedicationPage extends StatefulWidget {
   final Map<String, dynamic> medication;
@@ -16,6 +18,7 @@ class _EditMedicationPageState extends State<EditMedicationPage> {
   late TextEditingController _dosageController;
   late TextEditingController _dosagePerDayController;
   late TextEditingController _timeIntervalController;
+  List<TimeOfDay> _predeterminedTimes = [];
 
   @override
   void initState() {
@@ -30,20 +33,48 @@ class _EditMedicationPageState extends State<EditMedicationPage> {
         text: widget.medication['dosagePerDay']?.toString() ?? '');
     _timeIntervalController =
         TextEditingController(text: widget.medication['doseTimeInterval']);
+    if (widget.medication['predeterminedTimes'] != null &&
+        widget.medication['predeterminedTimes'].isNotEmpty) {
+      List<String> times = List<String>.from(
+          jsonDecode(widget.medication['predeterminedTimes']));
+      _predeterminedTimes =
+          times.map((timeStr) => _parseTime(timeStr)).toList();
+    }
+    _updateDosagePerDay(); // Update dosage per day based on initial times
+  }
+
+  TimeOfDay _parseTime(String timeStr) {
+    try {
+      final format = DateFormat.jm(); // 12-hour format with AM/PM
+      DateTime dateTime = format.parse(timeStr);
+      return TimeOfDay(hour: dateTime.hour, minute: dateTime.minute);
+    } catch (e) {
+      print('Error parsing time: $e');
+      throw FormatException('Invalid time format');
+    }
+  }
+
+  void _updateDosagePerDay() {
+    setState(() {
+      _dosagePerDayController.text = _predeterminedTimes.length.toString();
+    });
   }
 
   void _saveEdits() async {
+    List<String> times =
+        _predeterminedTimes.map((time) => _formatTimeOfDay(time)).toList();
     Map<String, dynamic> updatedMedication = {
       'id': widget.medication['id'],
       'profileId': widget.medication['profileId'],
+      'profileName': widget.medication['profileName'],
       'activeIngredient': _activeIngredientController.text,
       'brandName': _brandNameController.text,
       'dosage': double.tryParse(
           _dosageController.text), // Ensure dosage is stored correctly
       'dosagePerDay': int.tryParse(_dosagePerDayController.text),
       'doseTimeInterval': _timeIntervalController.text,
+      'predeterminedTimes': jsonEncode(times),
       'medicationType': widget.medication['medicationType'],
-      'predeterminedTimes': widget.medication['predeterminedTimes'],
     };
 
     try {
@@ -54,6 +85,18 @@ class _EditMedicationPageState extends State<EditMedicationPage> {
       print('Error updating medication: $e');
       _showErrorDialog('Failed to update medication: $e');
     }
+  }
+
+  String _formatTimeOfDay(TimeOfDay time) {
+    final now = DateTime.now();
+    final formattedTime = DateFormat.jm().format(DateTime(
+      now.year,
+      now.month,
+      now.day,
+      time.hour,
+      time.minute,
+    ));
+    return formattedTime;
   }
 
   void _showErrorDialog(String message) {
@@ -76,6 +119,26 @@ class _EditMedicationPageState extends State<EditMedicationPage> {
     );
   }
 
+  Future<void> _addTime() async {
+    TimeOfDay? newTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (newTime != null) {
+      setState(() {
+        _predeterminedTimes.add(newTime);
+        _updateDosagePerDay(); // Update dosage per day
+      });
+    }
+  }
+
+  void _removeTime(int index) {
+    setState(() {
+      _predeterminedTimes.removeAt(index);
+      _updateDosagePerDay(); // Update dosage per day
+    });
+  }
+
   @override
   void dispose() {
     _activeIngredientController.dispose();
@@ -92,7 +155,7 @@ class _EditMedicationPageState extends State<EditMedicationPage> {
       appBar: AppBar(
         title: Text('Edit Medication'),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,12 +180,37 @@ class _EditMedicationPageState extends State<EditMedicationPage> {
               controller: _dosagePerDayController,
               decoration: InputDecoration(labelText: 'Dosage Per Day'),
               keyboardType: TextInputType.number,
+              readOnly: true, // Make the field read-only
             ),
             SizedBox(height: 20),
             TextField(
               controller: _timeIntervalController,
               decoration:
                   InputDecoration(labelText: 'Time Interval Between Dosages'),
+            ),
+            SizedBox(height: 20),
+            Text(
+              'Predetermined Times',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 10),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: _predeterminedTimes.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  title: Text(_predeterminedTimes[index].format(context)),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete),
+                    onPressed: () => _removeTime(index),
+                  ),
+                );
+              },
+            ),
+            TextButton(
+              onPressed: _addTime,
+              child: Text('Add Time'),
             ),
             SizedBox(height: 20),
             ElevatedButton(

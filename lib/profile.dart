@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'database_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -95,6 +96,10 @@ class _ProfilePageState extends State<ProfilePage> {
               TextField(
                 controller: _ageController,
                 decoration: InputDecoration(labelText: 'Age'),
+                keyboardType: TextInputType.number,
+                inputFormatters: <TextInputFormatter>[
+                  FilteringTextInputFormatter.digitsOnly,
+                ],
               ),
               TextField(
                 controller: _allergenController,
@@ -227,6 +232,10 @@ class _ProfilePageState extends State<ProfilePage> {
                           TextField(
                             controller: _ageController,
                             decoration: InputDecoration(labelText: 'Age'),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: <TextInputFormatter>[
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
                           ),
                           TextField(
                             controller: _allergenController,

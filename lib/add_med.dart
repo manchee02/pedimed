@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'database_helper.dart';
-import 'package:intl/intl.dart'; // Import for time parsing
+import 'package:intl/intl.dart';
 
 class AddMedPage extends StatefulWidget {
   @override
@@ -120,6 +120,7 @@ class _AddMedPageState extends State<AddMedPage> {
           !_isDosagePerDaySelected ? _timeIntervalController.text : null,
       'medicationType': _selectedMedicationType,
       'predeterminedTimes': jsonEncode(times),
+      'createdAt': DateTime.now().toIso8601String(), // Add createdAt field
     };
 
     print('Saving Medication: $medication'); // Debug print

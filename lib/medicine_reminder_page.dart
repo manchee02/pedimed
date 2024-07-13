@@ -18,6 +18,7 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
   DateTime _selectedDate = DateTime.now();
   List<Map<String, dynamic>> intervalMedications = [];
   Map<int, DateTime> medicationTimers = {};
+  Set<String> takenMedications = {}; // Updated to store unique keys
 
   @override
   void initState() {
@@ -50,20 +51,28 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
     });
   }
 
-  Future<void> _recordMedicineTaken(
-      int medicationId, String time, String medicationName) async {
+  Future<void> _recordMedicineTaken(int medicationId, String time,
+      String medicationName, String profileName) async {
     final timestamp = DateTime.now();
     final formattedTime = DateFormat('hh:mm a').format(timestamp);
+    final dateStr = DateFormat('yyyy-MM-dd')
+        .format(_selectedDate); // Add the date to the key
+    final recordKey =
+        '$medicationId|$dateStr|$time'; // Unique key including date
+
     await _databaseHelper.recordMedicineTaken(
         medicationId, timestamp.toIso8601String());
-    await _firestore.collection('medication_taken').add({
+    await _firestore.collection('medication_taken').doc(recordKey).set({
+      'profileName': profileName,
       'medicationId': medicationId,
       'medicationName': medicationName,
       'timeTaken': formattedTime,
-      'dateTaken': DateFormat('yyyy-MM-dd').format(timestamp),
+      'dateTaken': dateStr,
       'timestamp': timestamp.toIso8601String(),
     });
-    setState(() {});
+    setState(() {
+      takenMedications.add(recordKey); // Update the local state
+    });
   }
 
   Future<void> _startTimer(
@@ -84,6 +93,23 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
     );
 
     setState(() {});
+  }
+
+  Future<bool> _isMedicineTaken(int medicationId, String time) async {
+    final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+    final recordKey =
+        '$medicationId|$dateStr|$time'; // Unique key including date
+
+    final querySnapshot = await _firestore
+        .collection('medication_taken')
+        .where('medicationId', isEqualTo: medicationId)
+        .where('dateTaken', isEqualTo: dateStr)
+        .where('timeTaken', isEqualTo: time)
+        .get();
+    if (querySnapshot.docs.isNotEmpty) {
+      return true;
+    }
+    return false;
   }
 
   @override
@@ -107,7 +133,10 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
                   return Center(child: Text('No medications found'));
                 }
 
-                final medications = snapshot.data!;
+                final medications = snapshot.data!
+                    .where((med) => DateTime.parse(med['createdAt'])
+                        .isBefore(_selectedDate.add(Duration(days: 1))))
+                    .toList();
                 final groupedMedications = _groupMedicationsByTime(medications);
                 final sortedTimes = groupedMedications.keys.toList()
                   ..sort((a, b) => DateFormat.jm()
@@ -205,55 +234,58 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
       String time,
       bool taken,
       String? takenTime) {
+    final dateStr = DateFormat('yyyy-MM-dd')
+        .format(_selectedDate); // Add the date to the key
+    final recordKey =
+        '${medication['id']}|$dateStr|$time'; // Define recordKey including date
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(10),
-          color: taken ? Colors.blue[100] : Colors.white,
-        ),
-        child: ListTile(
-          leading: Image.asset(
-            'assets/${medication['medicationType'].toLowerCase()}.jpg',
-            width: 40,
-            height: 40,
+      child: GestureDetector(
+        onTap: () {
+          if (!taken && !takenMedications.contains(recordKey)) {
+            _recordMedicineTaken(medication['id'], time,
+                medication['brandName'], profile['name']);
+          }
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(10),
+            color: taken ? Colors.blue[100] : Colors.white,
           ),
-          title: Text(
-            medication['brandName'],
-            style: taken ? TextStyle(color: Colors.blue) : null,
-          ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Child: ${profile['name']}',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              if (taken)
-                Text('Taken at $takenTime',
-                    style: TextStyle(color: Colors.blue)),
-            ],
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('${medication['dosage']} ${medication['dosageUnit']}'),
-              SizedBox(width: 8),
-              IconButton(
-                icon:
-                    Icon(Icons.check, color: taken ? Colors.blue : Colors.grey),
-                onPressed: taken
-                    ? null
-                    : () {
-                        _recordMedicineTaken(
-                                medication['id'], time, medication['brandName'])
-                            .then((_) {
-                          setState(() {});
-                        });
-                      },
-              ),
-            ],
+          child: ListTile(
+            leading: Image.asset(
+              'assets/${medication['medicationType'].toLowerCase()}.jpg',
+              width: 40,
+              height: 40,
+            ),
+            title: Text(
+              medication['brandName'],
+              style: taken ? TextStyle(color: Colors.blue) : null,
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Child: ${profile['name']}',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                if (taken)
+                  Text('Taken at $takenTime',
+                      style: TextStyle(color: Colors.blue)),
+              ],
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('${medication['dosage']} ${medication['dosageUnit']}'),
+                SizedBox(width: 8),
+                Icon(
+                  Icons.check,
+                  color: taken ? Colors.blue : Colors.grey,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -284,24 +316,17 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
               }
 
               final profile = profileSnapshot.data!;
-              return FutureBuilder<List<Map<String, dynamic>>>(
-                future: _databaseHelper.getMedicationTakenTimes(
-                    medication['id'],
-                    DateFormat('yyyy-MM-dd').format(_selectedDate) +
-                        'T00:00:00',
-                    DateFormat('yyyy-MM-dd').format(_selectedDate) +
-                        'T23:59:59'),
+              return FutureBuilder<bool>(
+                future: _isMedicineTaken(medication['id'], time),
                 builder: (context, takenSnapshot) {
                   bool taken = false;
                   String? takenTime;
                   if (takenSnapshot.connectionState == ConnectionState.done &&
                       takenSnapshot.hasData) {
-                    taken = takenSnapshot.data!.any((takenMed) {
-                      final takenTimestamp =
-                          DateTime.parse(takenMed['timestamp']);
-                      takenTime = DateFormat('hh:mm a').format(takenTimestamp);
-                      return DateFormat.jm().format(takenTimestamp) == time;
-                    });
+                    taken = takenSnapshot.data!;
+                    if (taken) {
+                      takenTime = DateFormat('hh:mm a').format(DateTime.now());
+                    }
                   }
                   return _buildMedicationTile(
                       medication, profile, time, taken, takenTime);
