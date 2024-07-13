@@ -44,7 +44,7 @@ class _SvmClassificationPageState extends State<SvmClassificationPage> {
         return;
       }
       final response = await http.post(
-        Uri.parse('http://10.62.50.166:5000/predict'),
+        Uri.parse('http://10.62.50.89:5000/predict'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
